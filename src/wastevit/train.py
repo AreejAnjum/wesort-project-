@@ -18,6 +18,30 @@ from .data import ManifestDataset, UnlabeledPairDataset
 from .model import SimCLR, build_encoder, nt_xent_loss
 
 
+def build_run_summary(cfg, results):
+    metadata = cfg.get("metadata", {})
+    baseline = results["baseline"]
+    adapted = results["ssl_adapted"]
+    return f"""# Experiment summary
+
+- Dataset: {metadata.get('dataset_name', 'not specified')}
+- Dataset status: {metadata.get('dataset_status', 'not specified')}
+- Purpose: {metadata.get('run_purpose', 'not specified')}
+- SSL technique: SimCLR (two augmented views, projection head, NT-Xent loss)
+- Backbone: {cfg['model']['backbone']} (pretrained={cfg['model']['pretrained']})
+- Evaluation: frozen encoder with a supervised linear probe
+
+| Variant | Test accuracy | Test macro-F1 |
+|---|---:|---:|
+| Baseline encoder | {baseline['accuracy']:.4f} | {baseline['macro_f1']:.4f} |
+| SSL-adapted encoder | {adapted['accuracy']:.4f} | {adapted['macro_f1']:.4f} |
+| SSL delta | {adapted['accuracy'] - baseline['accuracy']:+.4f} | {adapted['macro_f1'] - baseline['macro_f1']:+.4f} |
+
+These metrics are valid only for the dataset status stated above. A synthetic
+smoke test verifies the software path but is not research evidence.
+"""
+
+
 def set_seed(seed: int):
     random.seed(seed); np.random.seed(seed); torch.manual_seed(seed)
     if torch.cuda.is_available(): torch.cuda.manual_seed_all(seed)
@@ -115,6 +139,9 @@ def run(config_path: str):
     if len(unlabeled) < train_cfg["batch_size"] or train_cfg["batch_size"] < 2:
         raise ValueError("SSL needs at least one full batch and batch_size >= 2")
     with mlflow.start_run(run_name=cfg["run_name"]) as parent:
+        metadata = cfg.get("metadata", {})
+        mlflow.set_tags({"project": "WasteViT", "method": "SimCLR",
+                         "evaluation": "frozen-linear-probe", **metadata})
         mlflow.log_params({"seed": cfg["seed"], "device": str(device), "backbone": model_cfg["backbone"],
                            "pretrained": model_cfg["pretrained"], "unlabeled_images": len(unlabeled),
                            "train_images": len(train), "val_images": len(val), "test_images": len(test), **cfg["training"]})
@@ -124,6 +151,8 @@ def run(config_path: str):
         results = {}
         for stage in ("baseline", "ssl_adapted"):
             with mlflow.start_run(run_name=stage, nested=True):
+                mlflow.set_tags({"project": "WasteViT", "method": "SimCLR",
+                                 "variant": stage, **metadata})
                 set_seed(cfg["seed"])
                 encoder.load_state_dict(initial)
                 if stage == "ssl_adapted": encoder = train_ssl(encoder, dim, unlabeled, train_cfg, device)
@@ -139,6 +168,9 @@ def run(config_path: str):
                             "ssl_macro_f1_delta": results["ssl_adapted"]["macro_f1"] - results["baseline"]["macro_f1"]})
         Path("artifacts/results.json").write_text(json.dumps(results, indent=2))
         mlflow.log_artifact("artifacts/results.json")
+        summary = build_run_summary(cfg, results)
+        Path("artifacts/experiment_summary.md").write_text(summary)
+        mlflow.log_artifact("artifacts/experiment_summary.md")
         return parent.info.run_id, results
 
 

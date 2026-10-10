@@ -5,6 +5,7 @@ from PIL import Image
 
 from wastevit.data import ManifestDataset, UnlabeledPairDataset
 from wastevit.model import nt_xent_loss
+from wastevit.train import build_run_summary
 
 
 def test_unlabeled_dataset_discards_folder_names(tmp_path: Path):
@@ -40,3 +41,15 @@ def test_nt_xent_rejects_singleton_batch():
         assert "at least two" in str(error)
     else:
         raise AssertionError("singleton contrastive batch should fail")
+
+
+def test_run_summary_labels_synthetic_results():
+    cfg = {"metadata": {"dataset_name": "toy", "dataset_status": "synthetic-smoke-test",
+                        "run_purpose": "verification"},
+           "model": {"backbone": "tiny", "pretrained": False}}
+    results = {"baseline": {"accuracy": 0.5, "macro_f1": 0.3},
+               "ssl_adapted": {"accuracy": 0.6, "macro_f1": 0.4}}
+    summary = build_run_summary(cfg, results)
+    assert "synthetic-smoke-test" in summary
+    assert "not research evidence" in summary
+    assert "+0.1000" in summary

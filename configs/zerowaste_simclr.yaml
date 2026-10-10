@@ -3,6 +3,10 @@ experiment_name: wastevit-zerowaste
 run_name: simclr-resnet18
 tracking_uri: sqlite:///mlflow.db
 device: auto
+metadata:
+  dataset_name: ZeroWaste-s-and-ZeroWaste-f
+  dataset_status: real-public-data
+  run_purpose: waste-domain-ssl-experiment
 data:
   unlabeled_dir: data/zerowaste-s/data
   train_manifest: data/manifests/train.csv

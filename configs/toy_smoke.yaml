@@ -3,6 +3,10 @@ experiment_name: wastevit-smoke
 run_name: tiny-simclr
 tracking_uri: sqlite:///mlflow.db
 device: cpu
+metadata:
+  dataset_name: generated-toy-images
+  dataset_status: synthetic-smoke-test
+  run_purpose: software-verification-only
 data:
   unlabeled_dir: data/toy/unlabeled
   train_manifest: data/toy/train.csv

@@ -70,3 +70,6 @@ pytest --junitxml=reports/pytest.xml
 
 The repository intentionally excludes private project documents, datasets,
 generated checkpoints and local MLflow databases.
+
+For a presentation-ready explanation of the method, recorded results,
+limitations and real-world use, see [PROFESSOR_REPORT.md](PROFESSOR_REPORT.md).
